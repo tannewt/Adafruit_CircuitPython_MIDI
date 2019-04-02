@@ -59,7 +59,7 @@ class NoteOn(MIDIMessage):
         self.velocity = velocity
         if not 0 <= self.note <= 127 or not 0 <= self.velocity <= 127:
             raise ValueError("Out of range")
-           
+
     # channel value is mandatory
     def as_bytes(self, channel=None):
         return bytearray([self._STATUS | (channel & self._CHANNELMASK),
@@ -67,6 +67,7 @@ class NoteOn(MIDIMessage):
 
     @classmethod
     def from_bytes(cls, databytes):
-        return cls(databytes[0], databytes[1])  
+        print(databytes[0], len(databytes))
+        return cls(databytes[1], databytes[2])
 
 NoteOn.register_message_type()

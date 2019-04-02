@@ -53,7 +53,7 @@ class NoteOff(MIDIMessage):
     _STATUSMASK = 0xf0
     _LENGTH = 3
     _CHANNELMASK = 0x0f
-    
+
     def __init__(self, note, velocity):
         self.note = note_parser(note)
         self.velocity = velocity
@@ -67,6 +67,6 @@ class NoteOff(MIDIMessage):
 
     @classmethod
     def from_bytes(cls, databytes):
-        return cls(databytes[0], databytes[1])  
+        return cls(databytes[1], databytes[2])
 
 NoteOff.register_message_type()

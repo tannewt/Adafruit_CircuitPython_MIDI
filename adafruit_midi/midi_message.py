@@ -66,11 +66,11 @@ def channel_filter(channel, channel_spec):
     else:
         raise ValueError("Incorrect type for channel_spec")
 
-  
+
 def note_parser(note):
     """If note is a string then it will be parsed and converted to a MIDI note (key) number, e.g.
     "C4" will return 60, "C#4" will return 61. If note is not a string it will simply be returned.
-    
+
     :param note: Either 0-127 int or a str representing the note, e.g. "C#4"
     """
     midi_note = note
@@ -91,7 +91,7 @@ def note_parser(note):
                      + sharpen)
 
     return midi_note
-        
+
 
 class MIDIMessage:
     """
@@ -110,7 +110,7 @@ class MIDIMessage:
     _LENGTH = None
     _CHANNELMASK = None
     _ENDSTATUS = None
-    
+
     # Each element is ((status, mask), class)
     # order is more specific masks first
     _statusandmask_to_class = []
@@ -128,7 +128,7 @@ class MIDIMessage:
 
         MIDIMessage._statusandmask_to_class.insert(insert_idx,
                                                    ((cls._STATUS, cls._STATUSMASK), cls))
-                        
+
     @classmethod
     def from_message_bytes(cls, midibytes, channel_in):
         """Create an appropriate object of the correct class for the
@@ -144,7 +144,7 @@ class MIDIMessage:
         endidx = len(midibytes) - 1
         skipped = 0
         preamble = True
-        
+
         msgstartidx = startidx
         msgendidxplusone = 0
         while True:
@@ -154,7 +154,7 @@ class MIDIMessage:
                 msgstartidx += 1
                 if preamble:
                     skipped += 1
-            
+
             preamble = False
 
             # Either no message or a partial one
@@ -201,9 +201,9 @@ class MIDIMessage:
 
                         if complete_message and not bad_termination and channel_match_orNA:
                             try:
-                                msg = msgclass.from_bytes(midibytes[msgstartidx+1:msgendidxplusone])
+                                msg = msgclass.from_bytes(midibytes)
                             except(ValueError, TypeError) as e:
-                                msg = MIDIBadEvent(midibytes[msgstartidx+1:msgendidxplusone], e)                               
+                                msg = MIDIBadEvent(midibytes[msgstartidx+1:msgendidxplusone], e)
 
                     break  # for
 

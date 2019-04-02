@@ -43,12 +43,38 @@ Implementation Notes
 """
 
 import usb_midi
+import time
 
 from .midi_message import MIDIMessage
 
 __version__ = "0.0.0-auto.0"
 __repo__ = "https://github.com/adafruit/Adafruit_CircuitPython_MIDI.git"
 
+class RingBuffer:
+    def __init__(self, size):
+        self._buf = bytearray(size)
+        self._start = 0
+        self._current_size = 0
+
+    def append(self, value):
+        if len(self._buf) == self._current_size:
+            raise RuntimeError("Buffer full")
+        self._buf[(self._start + self._current_size) % len(self._buf)] = value
+        self._current_size += 1
+
+    def popleft(self):
+        if self._current_size == 0:
+            raise IndexError("Empty")
+        v = self._buf[self._start]
+        self._start = (self._start + 1) % len(self._buf)
+        self._current_size -= 1
+        return v
+
+    def __len__(self):
+        return self._current_size
+
+    def __getitem__(self, index):
+        return self._buf[(self._start + index) % len(self._buf)]
 
 class MIDI:
     """MIDI helper class."""
@@ -66,8 +92,9 @@ class MIDI:
         self.out_channel = out_channel
         self._debug = debug
         # This input buffer holds what has been read from midi_in
-        self._in_buf = bytearray(0)
-        self._in_buf_size = in_buf_size
+        self._in_buf = RingBuffer(in_buf_size)
+        self._in_buf_start = 0
+        self._in_buf2 = bytearray(4)
         self._outbuf = bytearray(4)
         self._skipped_bytes = 0
 
@@ -106,28 +133,22 @@ class MIDI:
     def receive(self):
         """Read messages from MIDI port, store them in internal read buffer, then parse that data
         and return the first MIDI message (event).
-        
+
         Returns (MIDIMessage object, channel) or (None, None) for nothing.
         """
-        ### could check _midi_in is an object OR correct object OR correct interface here?
-        # If the buffer here is not full then read as much as we can fit from
-        # the input port
-        if len(self._in_buf) < self._in_buf_size:
-            bytes_in = self._midi_in.read(self._in_buf_size - len(self._in_buf))
-            if len(bytes_in) > 0:
-                if self._debug:
-                    print("Receiving: ", [hex(i) for i in bytes_in])
-                self._in_buf.extend(bytes_in)
-                del bytes_in
+        num_read = self._midi_in.readinto(self._in_buf2)
+        if num_read and num_read > 0:
+            if self._debug:
+                print("Receiving: ", [hex(self._in_buf2[i]) for i in range(num_read)])
+            for i in range(num_read):
+                self._in_buf.append(self._in_buf2[i])
 
         (msg, start, endplusone, skipped, channel) = MIDIMessage.from_message_bytes(self._in_buf, self._in_channel)
-        if endplusone != 0:
-            # This is not particularly efficient as it's copying most of bytearray
-            # and deleting old one
-            self._in_buf = self._in_buf[endplusone:]
+        for _ in range(endplusone):
+            self._in_buf.popleft()
 
         self._skipped_bytes += skipped
-            
+
         # msg could still be None at this point, e.g. in middle of monster SysEx
         return (msg, channel)
 
@@ -146,9 +167,9 @@ class MIDI:
             data = bytearray()
             for each_msg in msg:
                 data.extend(each_msg.as_bytes(channel=channel))
-                
+
         self._send(data, len(data))
-        
+
     def note_on(self, note, vel, channel=None):
         """Sends a MIDI Note On message.
 
