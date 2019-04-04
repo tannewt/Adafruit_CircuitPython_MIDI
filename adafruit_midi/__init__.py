@@ -74,6 +74,13 @@ class RingBuffer:
         return self._current_size
 
     def __getitem__(self, index):
+        if isinstance(index, slice):
+            step = index.step if index.step else 1
+            length = (index.stop - index.start) // step
+            b = bytearray(length)
+            for i in range(length):
+                b[i] = self[step*i]
+            return b
         return self._buf[(self._start + index) % len(self._buf)]
 
 class MIDI:
